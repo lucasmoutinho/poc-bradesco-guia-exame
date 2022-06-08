@@ -315,6 +315,9 @@ pt-BR:
       guide:
         one: Guia
         other: Guias
+      price:
+        one: Preço
+        other: Preços
     attributes:
       solicitation:
         beneficiary: Beneficiário
@@ -333,4 +336,13 @@ pt-BR:
         detail: Detalhe
         procedures: Procedimentos
         contract: Contrato
+      contract:
+        provider: Prestador
+        price: Preço
+        contract_type: Tipo de Contrato
+      price:
+        contract: Contrato
+        value: Valor
+        name: Nome
+        code: Códigos
 

@@ -67,4 +67,8 @@ RailsAdmin.config do |config|
   config.model 'Provider' do
     navigation_icon 'fa fa-shield'
   end
+
+  config.model 'Price' do
+    navigation_icon 'fa fa-money'
+  end
 end

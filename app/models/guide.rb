@@ -1,7 +1,7 @@
 class Guide < ApplicationRecord
   belongs_to :provider
   belongs_to :patient
-  has_many :procedures
+  has_and_belongs_to_many :procedures
 
   after_create :call_guide_service
 

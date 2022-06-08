@@ -13,13 +13,132 @@ class GuideService
         @procedures_codes = procedures_codes
         repeticao = Guide.where(patient: @guide.patient, provider: @guide.provider).length()
         @repeticao_exame = repeticao
+
+        # Avalia preço de bundle
+        bundle_contracts = Contract.where(provider: @guide.provider, contract_type: "Bundle").first()
+        ffs_contracts = Contract.where(provider: @guide.provider, contract_type: "FFS").first()
+        lista_precos = []
+        unless bundle_contracts.nil?
+            bundle_prices = Price.where(id: bundle_contracts.prices)
+            for pri in bundle_prices do
+                bundle_codes = pri.code.split(",")
+                if (bundle_codes - procedures_codes).empty?
+                    bundle_price = pri.value.to_i
+                    other_procedures = (procedures_codes - bundle_codes)
+                    ffs_prices = Price.where(id: ffs_contracts.prices)
+                    for pr in other_procedures do
+                        price = 0
+                        for ffs in ffs_prices do
+                            if ffs.code.include? pr
+                                price = ffs.value.to_i
+                            end 
+                        end
+                        bundle_price = bundle_price + price
+                    end
+                else
+                    bundle_price = -1
+                end
+                if bundle_price != -1
+                    lista_precos.push(["bundle", bundle_price])
+                end
+            end
+        end
+
+
+        # Avalia preço de Captation
+        captation_contracts = Contract.where(provider: @guide.provider, contract_type: "Captation").first()
+        unless captation_contracts.nil?
+            captation_prices = Price.where(id: captation_contracts.prices)
+            ffs_prices = Price.where(id: ffs_contracts.prices)
+            quantidade_captation = 2
+
+            captation_price = -1
+            for pr in procedures_codes do
+                for cap in captation_prices do
+                    if cap.code.include? pr
+                        captation_price = 0
+                    end 
+                end
+            end
+
+            if captation_price != -1
+                ordered_pr_codes = []
+                codes_1 = []
+                codes_2 = []
+                codes_3 = []
+                for pr in procedures_codes do
+                    if pr.chr == '1'
+                        codes_1.push(pr)
+                    end
+                    if pr.chr == '4'
+                        codes_2.push(pr)
+                    end
+                    if pr.chr == '3'
+                        codes_3.push(pr)
+                    end
+                end
+                for pr in codes_3 do
+                    ordered_pr_codes.push(pr)
+                end
+                for pr in codes_2 do
+                    ordered_pr_codes.push(pr)
+                end
+                for pr in codes_1 do
+                    ordered_pr_codes.push(pr)
+                end
+
+                for pr in ordered_pr_codes do
+                    price = 0
+                    if quantidade_captation > 0
+                        for cap in captation_prices do
+                            if cap.code.include? pr
+                                puts "CODIGO: " + pr
+                                price = cap.value.to_i
+                            end 
+                        end
+                        if price == 0
+                            for ffs in ffs_prices do
+                                if ffs.code.include? pr
+                                    price = ffs.value.to_i
+                                end 
+                            end
+                        else
+                            quantidade_captation = quantidade_captation - 1
+                        end
+                    else
+                        for ffs in ffs_prices do
+                            if ffs.code.include? pr
+                                price = ffs.value.to_i
+                            end 
+                        end
+                    end
+                    captation_price = captation_price + price
+                end
+                lista_precos.push(["captation", captation_price])
+            end
+        end
+
+        # Avalia preço de FFS
+        ffs_price = 0
+        for pr in procedures_codes do
+            price = 0
+            for ffs in ffs_prices do
+                if ffs.code.include? pr
+                    price = ffs.value.to_i
+                end 
+            end
+            ffs_price = ffs_price + price
+        end
+        lista_precos.push(["ffs", ffs_price])
+
+        @lista_precos = lista_precos
     end
 
     def update_guide_local
         puts "GUIAAAAAAA"
-        puts @procedures_codes
+        puts @lista_precos
         puts "FIM"
-        @guide.update(value:'R$ 100,00', detail: 'Teste')
+        @guide.update(value:'R$ 100,00', detail: 'Teste: ' + @lista_precos.to_s)
     end
 
     def update_guide_api
@@ -29,7 +148,7 @@ class GuideService
 
     def call_sas_api
         # parâmetros de entrada SAS
-        baseUrl = "http://10.96.16.122/"
+        baseUrl = "https://server.demo.sas.com"
         username = "sasdemo"
         password = "Orion123"
 
@@ -52,7 +171,7 @@ class GuideService
         # Faz a requisição ao SAS com o Token recebido
         if token_response.include?("access_token")
             tk = token_response["access_token"]
-            urlSID = baseUrl + "/microanalyticScore/modules/poc_sas_valor_guia/steps/execute"
+            urlSID = baseUrl + "/microanalyticScore/modules/modeloremuneracaoguiaexame/steps/execute"
             headersSID = {
                 "Content-Type": "application/json;charset=utf-8",
                 "Accept": "application/json",
@@ -61,7 +180,8 @@ class GuideService
             json_entrada = {
                 "codigo_prestador": @guide.provider.code,
                 "lista_procedimentos": @procedures_codes,
-                "repeticao_exame": @repeticao_exame
+                "repeticao_exame": @repeticao_exame,
+                "lista_precos": @lista_precos
             }
             bodySID = {
                 "inputs":
@@ -85,8 +205,8 @@ class GuideService
                 if output["name"] == "valor_guia"
                     value = output["value"]
                 end
-                if output["name"] == "detalhe_extrato"
-                    detail = output["value"]
+                if output["name"] == "lista_valores_por_mr"
+                    detail = "Opções: " + output["value"]
                 end
             end
 

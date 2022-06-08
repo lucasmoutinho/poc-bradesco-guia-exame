@@ -1,0 +1,9 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  provider: one
+  contract_type: MyString
+
+two:
+  provider: two
+  contract_type: MyString
